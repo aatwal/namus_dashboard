@@ -31,7 +31,13 @@ GROUP_COLORS = [COLORS["red"],   COLORS["blue"],   COLORS["gray"], COLORS["green
 SEX_COLORS   = [COLORS["blue"],  COLORS["pink"]]
 RACE_COLORS  = [COLORS["coral"], COLORS["blue"],   COLORS["gray"], COLORS["green"], COLORS["purple"]]
 
-DEFAULT_CSV = "/mnt/user-data/uploads/download_06-12-2026_20_41_26.csv"
+_APP_DIR = os.path.dirname(os.path.abspath(__file__))
+_csv_candidates = sorted(
+    [f for f in os.listdir(_APP_DIR) if f.endswith(".csv")],
+    key=lambda f: os.path.getmtime(os.path.join(_APP_DIR, f)),
+    reverse=True,
+)
+DEFAULT_CSV = os.path.join(_APP_DIR, _csv_candidates[0]) if _csv_candidates else None
 
 
 def get_chart_layout(theme="light"):
@@ -216,7 +222,7 @@ app.layout = dbc.Container([
             html.I(className="bi bi-cloud-upload me-2"),
             "Drop a NamUs CSV here, or ",
             html.A("browse", style={"color": COLORS["blue"]}),
-            " — defaults to pre-loaded CA export",
+            f" — auto-loaded: {os.path.basename(DEFAULT_CSV) if DEFAULT_CSV else 'none found'}",
         ], className="upload-zone")),
         html.Div(id="upload-status",
                  style={"fontSize": "12px", "marginTop": "6px",
@@ -577,9 +583,11 @@ def load_data(contents, filename):
             status = f"✅ Loaded {filename} — {len(df):,} cases"
         except Exception as e:
             return no_update, f"❌ Error: {e}", [], []
-    else:
+    elif DEFAULT_CSV:
         df     = load_csv(DEFAULT_CSV)
-        status = f"Using default CA export — {len(df):,} cases"
+        status = f"Auto-loaded {os.path.basename(DEFAULT_CSV)} — {len(df):,} cases"
+    else:
+        return no_update, "❌ No CSV file found in app directory. Please upload one.", [], []
 
     counties    = sorted(df["County"].dropna().unique())
     races       = sorted(df["Race / Ethnicity"].dropna().unique())
