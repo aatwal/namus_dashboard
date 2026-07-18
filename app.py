@@ -789,9 +789,9 @@ def update_all(json_data, view, counties, races, days_max, search, theme):
             colorscale=[[0, "#fce8e8"], [1, COLORS["red"]]],
             showscale=True,
             colorbar=dict(
-                title="Cases", thickness=12, len=0.5,
+                title=dict(text="Cases", font=dict(color=base_layout["font"]["color"])),
+                thickness=12, len=0.5,
                 tickfont=dict(color=base_layout["font"]["color"]),
-                titlefont=dict(color=base_layout["font"]["color"]),
             ),
             line=dict(width=0.5, color="rgba(255,255,255,0.5)"),
         ),
