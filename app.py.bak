@@ -1,0 +1,471 @@
+import base64
+import io
+import re
+import pandas as pd
+import plotly.graph_objects as go
+from dash import Dash, html, dcc, dash_table, Input, Output, State, no_update
+import dash_bootstrap_components as dbc
+
+# ── Data loading ──────────────────────────────────────────────────────────────
+
+def parse_df(raw: pd.DataFrame) -> pd.DataFrame:
+    df = raw.copy()
+    df.columns = df.columns.str.strip()
+
+    def parse_age(s):
+        m = re.search(r"(\d+)", str(s))
+        return int(m.group(1)) if m else None
+
+    def age_bucket(a):
+        if a is None: return "Unknown"
+        if a < 18:   return "Under 18"
+        if a < 30:   return "18–29"
+        if a < 50:   return "30–49"
+        return "50+"
+
+    def child_bucket(a):
+        if a is None: return "Unknown"
+        if a <= 5:   return "0–5"
+        if a <= 12:  return "6–12"
+        return "13–17"
+
+    df["Age"] = df["Missing Age"].apply(parse_age)
+    df["Age Group"] = df["Age"].apply(age_bucket)
+    df["Child Group"] = df["Age"].apply(child_bucket)
+    df["DLC"] = pd.to_datetime(df["DLC"], errors="coerce")
+    return df
+
+
+def decode_upload(contents: str) -> pd.DataFrame:
+    _, content_string = contents.split(",", 1)
+    decoded = base64.b64decode(content_string)
+    raw = pd.read_csv(io.StringIO(decoded.decode("utf-8-sig")))
+    return parse_df(raw)
+
+
+# ── Design tokens ─────────────────────────────────────────────────────────────
+
+NAVY   = "#1e3a5f"
+BLUE   = "#2563eb"
+RED    = "#dc2626"
+PURPLE = "#7c3aed"
+TEAL   = "#0d9488"
+ORANGE = "#ea580c"
+GRAY   = "#64748b"
+PINK   = "#db2777"
+GREEN  = "#16a34a"
+
+AGE_COLORS   = [ORANGE, PURPLE, TEAL]
+GROUP_COLORS = [RED, BLUE, GRAY, GREEN]
+SEX_COLORS   = [BLUE, PINK]
+RACE_COLORS  = [ORANGE, BLUE, GRAY, GREEN, PURPLE]
+
+CHART_LAYOUT = dict(
+    paper_bgcolor="rgba(0,0,0,0)",
+    plot_bgcolor="rgba(0,0,0,0)",
+    font=dict(family="Inter, system-ui, sans-serif", size=12, color="#64748b"),
+    margin=dict(l=8, r=8, t=8, b=8),
+    showlegend=False,
+)
+
+EMPTY_FIG = go.Figure()
+EMPTY_FIG.update_layout(**CHART_LAYOUT)
+
+# ── App ───────────────────────────────────────────────────────────────────────
+
+app = Dash(
+    __name__,
+    external_stylesheets=[
+        dbc.themes.BOOTSTRAP,
+        "https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css",
+    ],
+    title="NamUs Dashboard",
+)
+
+# ── UI helpers ────────────────────────────────────────────────────────────────
+
+def metric_card(label, value, color, icon):
+    return dbc.Card(
+        dbc.CardBody(
+            html.Div([
+                html.Div([
+                    html.P(label, style={
+                        "fontSize": "11px", "fontWeight": 600, "color": "#94a3b8",
+                        "textTransform": "uppercase", "letterSpacing": "0.07em",
+                        "marginBottom": "8px", "margin": 0,
+                    }),
+                    html.Div(str(value), style={
+                        "fontWeight": 700, "color": "#0f172a",
+                        "fontSize": "26px", "lineHeight": 1, "marginTop": "6px",
+                    }),
+                ]),
+                html.Div(
+                    html.I(className=f"bi {icon}", style={"fontSize": "20px", "color": color}),
+                    style={
+                        "width": "44px", "height": "44px", "borderRadius": "10px",
+                        "backgroundColor": color + "22",
+                        "display": "flex", "alignItems": "center",
+                        "justifyContent": "center", "flexShrink": 0,
+                    },
+                ),
+            ], style={"display": "flex", "justifyContent": "space-between", "alignItems": "center"}),
+            style={"padding": "20px 22px"},
+        ),
+        style={
+            "borderRadius": "12px", "border": "none",
+            "borderLeft": f"4px solid {color}",
+            "boxShadow": "0 1px 6px rgba(0,0,0,0.07)",
+        },
+    )
+
+
+def chart_card(title, graph_id, height="230px"):
+    return dbc.Card(
+        dbc.CardBody([
+            html.P(title, style={
+                "fontSize": "11px", "fontWeight": 700, "color": "#94a3b8",
+                "textTransform": "uppercase", "letterSpacing": "0.07em",
+                "marginBottom": "10px",
+            }),
+            dcc.Graph(id=graph_id, config={"displayModeBar": False}, style={"height": height}),
+        ], style={"padding": "18px 20px"}),
+        style={
+            "borderRadius": "12px", "border": "none",
+            "boxShadow": "0 1px 6px rgba(0,0,0,0.07)", "height": "100%",
+        },
+    )
+
+
+# ── Layout ────────────────────────────────────────────────────────────────────
+
+app.layout = html.Div([
+
+    dcc.Store(id="data-store"),
+
+    # ── Header ────────────────────────────────────────────────────────────────
+    html.Div([
+        dbc.Container([
+            html.Div([
+                html.Div([
+                    html.Div([
+                        html.I(className="bi bi-search-heart",
+                               style={"fontSize": "20px", "marginRight": "10px", "opacity": 0.85}),
+                        html.Span("NamUs Dashboard", style={"fontWeight": 700, "fontSize": "19px"}),
+                    ], style={"display": "flex", "alignItems": "center", "color": "white", "marginBottom": "3px"}),
+                    html.P(
+                        "National Missing and Unidentified Persons System · Research Tool",
+                        style={"color": "rgba(255,255,255,0.55)", "fontSize": "12.5px", "margin": 0},
+                    ),
+                ]),
+                html.Div([
+                    dcc.Upload(
+                        id="upload",
+                        children=html.Div([
+                            html.I(className="bi bi-upload me-2"),
+                            "Upload CSV",
+                        ], style={"display": "flex", "alignItems": "center"}),
+                        style={
+                            "backgroundColor": "rgba(255,255,255,0.12)",
+                            "border": "1.5px solid rgba(255,255,255,0.3)",
+                            "borderRadius": "8px", "padding": "8px 18px",
+                            "color": "white", "cursor": "pointer",
+                            "fontSize": "13px", "fontWeight": 500,
+                        },
+                    ),
+                    html.Div(id="upload-status", style={
+                        "fontSize": "11px", "color": "rgba(255,255,255,0.5)",
+                        "marginTop": "5px", "textAlign": "right",
+                    }),
+                ]),
+            ], style={"display": "flex", "justifyContent": "space-between", "alignItems": "center"}),
+        ], fluid=True, style={"maxWidth": "1160px", "padding": "0 24px"}),
+    ], style={"backgroundColor": NAVY, "padding": "20px 0", "marginBottom": "28px"}),
+
+    # ── Body ──────────────────────────────────────────────────────────────────
+    dbc.Container([
+
+        # Filters
+        dbc.Card(
+            dbc.CardBody(
+                dbc.Row([
+                    dbc.Col([
+                        html.Label("View", style={
+                            "fontSize": "11px", "fontWeight": 600, "color": "#94a3b8",
+                            "textTransform": "uppercase", "letterSpacing": "0.07em",
+                            "display": "block", "marginBottom": "6px",
+                        }),
+                        dcc.RadioItems(
+                            id="view-toggle",
+                            options=[
+                                {"label": " All cases",         "value": "all"},
+                                {"label": " Children (< 18)",   "value": "children"},
+                            ],
+                            value="children",
+                            inline=True,
+                            style={"fontSize": "13px"},
+                            inputStyle={"marginRight": "5px"},
+                            labelStyle={"marginRight": "20px"},
+                        ),
+                    ], md=4),
+                    dbc.Col([
+                        html.Label("County", style={
+                            "fontSize": "11px", "fontWeight": 600, "color": "#94a3b8",
+                            "textTransform": "uppercase", "letterSpacing": "0.07em",
+                            "display": "block", "marginBottom": "6px",
+                        }),
+                        dcc.Dropdown(
+                            id="county-filter",
+                            placeholder="All counties",
+                            multi=True,
+                            style={"fontSize": "13px"},
+                        ),
+                    ], md=5),
+                    dbc.Col([
+                        html.Label("Search", style={
+                            "fontSize": "11px", "fontWeight": 600, "color": "#94a3b8",
+                            "textTransform": "uppercase", "letterSpacing": "0.07em",
+                            "display": "block", "marginBottom": "6px",
+                        }),
+                        dbc.Input(id="search-box", placeholder="Name, city, county…",
+                                  type="text", style={"fontSize": "13px"}),
+                    ], md=3),
+                ], align="end"),
+                style={"padding": "18px 22px"},
+            ),
+            style={
+                "borderRadius": "12px", "border": "none",
+                "boxShadow": "0 1px 6px rgba(0,0,0,0.07)", "marginBottom": "20px",
+            },
+        ),
+
+        # Metric cards
+        dbc.Row(id="metric-cards", className="g-3 mb-4"),
+
+        # Charts row 1
+        dbc.Row([
+            dbc.Col(chart_card("Age group breakdown",  "age-bar", "230px"), md=6),
+            dbc.Col(chart_card("Sex distribution",     "sex-pie", "230px"), md=6),
+        ], className="g-3 mb-3"),
+
+        # Charts row 2
+        dbc.Row([
+            dbc.Col(chart_card("Top counties",         "county-bar", "270px"), md=6),
+            dbc.Col(chart_card("Race / ethnicity",     "race-pie",   "270px"), md=6),
+        ], className="g-3 mb-3"),
+
+        # Timeline
+        dbc.Row([
+            dbc.Col(chart_card("Cases by year reported missing", "time-line", "200px")),
+        ], className="mb-3"),
+
+        # Table
+        dbc.Card(
+            dbc.CardBody([
+                html.P("Case list", style={
+                    "fontSize": "11px", "fontWeight": 700, "color": "#94a3b8",
+                    "textTransform": "uppercase", "letterSpacing": "0.07em",
+                    "marginBottom": "14px",
+                }),
+                dash_table.DataTable(
+                    id="case-table",
+                    columns=[
+                        {"name": "Case #",           "id": "Case Number"},
+                        {"name": "Last name",        "id": "Legal Last Name"},
+                        {"name": "First name",       "id": "Legal First Name"},
+                        {"name": "Age",              "id": "Missing Age"},
+                        {"name": "City",             "id": "City"},
+                        {"name": "County",           "id": "County"},
+                        {"name": "Sex",              "id": "Biological Sex"},
+                        {"name": "Race / Ethnicity", "id": "Race / Ethnicity"},
+                        {"name": "Date missing",     "id": "DLC"},
+                    ],
+                    page_size=15,
+                    sort_action="native",
+                    filter_action="native",
+                    style_table={"overflowX": "auto"},
+                    style_cell={
+                        "fontSize": "12px", "padding": "9px 12px",
+                        "fontFamily": "Inter, system-ui, sans-serif",
+                        "color": "#334155", "border": "none",
+                        "borderBottom": "1px solid #f1f5f9",
+                    },
+                    style_header={
+                        "fontWeight": 600, "backgroundColor": "#f8fafc",
+                        "fontSize": "11px", "color": "#94a3b8",
+                        "textTransform": "uppercase", "letterSpacing": "0.05em",
+                        "border": "none", "borderBottom": "2px solid #e2e8f0",
+                        "padding": "10px 12px",
+                    },
+                    style_data_conditional=[
+                        {"if": {"row_index": "odd"}, "backgroundColor": "#fafbfd"},
+                    ],
+                ),
+            ], style={"padding": "18px 22px"}),
+            style={
+                "borderRadius": "12px", "border": "none",
+                "boxShadow": "0 1px 6px rgba(0,0,0,0.07)", "marginBottom": "20px",
+            },
+        ),
+
+        html.P(
+            "Data source: NamUs (namus.nij.ojp.gov) · for research purposes only",
+            className="text-center",
+            style={"fontSize": "11px", "color": "#94a3b8", "marginBottom": "36px"},
+        ),
+
+    ], fluid=True, style={"maxWidth": "1160px"}),
+
+], style={"backgroundColor": "#f1f5f9", "minHeight": "100vh",
+          "fontFamily": "Inter, system-ui, sans-serif"})
+
+
+# ── Callbacks ─────────────────────────────────────────────────────────────────
+
+@app.callback(
+    Output("data-store", "data"),
+    Output("upload-status", "children"),
+    Output("county-filter", "options"),
+    Input("upload", "contents"),
+    State("upload", "filename"),
+    prevent_initial_call=True,
+)
+def handle_upload(contents, filename):
+    try:
+        df = decode_upload(contents)
+    except Exception as e:
+        return no_update, f"Error: {e}", no_update
+
+    counties = [{"label": c, "value": c} for c in sorted(df["County"].dropna().unique())]
+    df["DLC"] = df["DLC"].dt.strftime("%Y-%m-%d")
+    return df.to_json(orient="split"), f"{filename} · {len(df):,} cases", counties
+
+
+@app.callback(
+    Output("metric-cards", "children"),
+    Output("age-bar", "figure"),
+    Output("sex-pie", "figure"),
+    Output("county-bar", "figure"),
+    Output("race-pie", "figure"),
+    Output("time-line", "figure"),
+    Output("case-table", "data"),
+    Input("data-store", "data"),
+    Input("view-toggle", "value"),
+    Input("county-filter", "value"),
+    Input("search-box", "value"),
+)
+def update_all(stored, view, counties, search):
+    empty_cards = dbc.Row([
+        dbc.Col(metric_card("Total cases",     "—", BLUE,   "bi-people-fill"),  md=3),
+        dbc.Col(metric_card("Children (< 18)", "—", RED,    "bi-person-fill"),  md=3),
+        dbc.Col(metric_card("% children",      "—", PURPLE, "bi-percent"),      md=3),
+        dbc.Col(metric_card("Top county",      "—", TEAL,   "bi-geo-alt-fill"), md=3),
+    ], className="g-3").children
+
+    if not stored:
+        return empty_cards, EMPTY_FIG, EMPTY_FIG, EMPTY_FIG, EMPTY_FIG, EMPTY_FIG, []
+
+    df = pd.read_json(stored, orient="split")
+    df["DLC"] = pd.to_datetime(df["DLC"], errors="coerce")
+
+    dff = df.copy()
+    if view == "children":
+        dff = dff[dff["Age"] < 18]
+    if counties:
+        dff = dff[dff["County"].isin(counties)]
+    if search:
+        s = search.lower()
+        mask = (
+            dff["Legal Last Name"].str.lower().str.contains(s, na=False) |
+            dff["Legal First Name"].str.lower().str.contains(s, na=False) |
+            dff["City"].str.lower().str.contains(s, na=False) |
+            dff["County"].str.lower().str.contains(s, na=False)
+        )
+        dff = dff[mask]
+
+    total   = len(dff)
+    child_n = (dff["Age"] < 18).sum()
+    pct     = f"{round(child_n / total * 100)}%" if total else "—"
+    top_cty = dff["County"].value_counts().idxmax() if total else "—"
+
+    cards = dbc.Row([
+        dbc.Col(metric_card("Total cases",     f"{total:,}",   BLUE,   "bi-people-fill"),  md=3),
+        dbc.Col(metric_card("Children (< 18)", f"{child_n:,}", RED,    "bi-person-fill"),  md=3),
+        dbc.Col(metric_card("% children",      pct,            PURPLE, "bi-percent"),      md=3),
+        dbc.Col(metric_card("Top county",      top_cty,        TEAL,   "bi-geo-alt-fill"), md=3),
+    ], className="g-3").children
+
+    # Age bar
+    if view == "children":
+        age_counts = dff["Child Group"].value_counts().reindex(["0–5", "6–12", "13–17"], fill_value=0)
+        age_colors = AGE_COLORS
+    else:
+        age_counts = dff["Age Group"].value_counts().reindex(["Under 18", "18–29", "30–49", "50+"], fill_value=0)
+        age_colors = GROUP_COLORS
+
+    age_fig = go.Figure(go.Bar(
+        x=age_counts.index.tolist(), y=age_counts.values.tolist(),
+        marker_color=age_colors, marker_line_width=0,
+    ))
+    age_fig.update_layout(
+        **CHART_LAYOUT,
+        xaxis=dict(showgrid=False, showline=False),
+        yaxis=dict(showgrid=True, gridcolor="#f1f5f9", zeroline=False),
+    )
+
+    # Sex donut
+    sex_counts = dff["Biological Sex"].value_counts()
+    sex_fig = go.Figure(go.Pie(
+        labels=sex_counts.index.tolist(), values=sex_counts.values.tolist(),
+        hole=0.55, marker_colors=SEX_COLORS,
+        textinfo="label+percent", textfont_size=11,
+    ))
+    sex_fig.update_layout(**CHART_LAYOUT)
+
+    # County bar (top 8, horizontal)
+    cty_counts = dff["County"].value_counts().head(8).sort_values()
+    cty_fig = go.Figure(go.Bar(
+        y=cty_counts.index.tolist(), x=cty_counts.values.tolist(),
+        orientation="h", marker_color=RED, marker_line_width=0,
+    ))
+    cty_fig.update_layout(
+        **CHART_LAYOUT,
+        xaxis=dict(showgrid=True, gridcolor="#f1f5f9", zeroline=False),
+        yaxis=dict(showgrid=False),
+    )
+
+    # Race donut
+    race_counts = dff["Race / Ethnicity"].value_counts().head(5)
+    race_fig = go.Figure(go.Pie(
+        labels=race_counts.index.tolist(), values=race_counts.values.tolist(),
+        hole=0.55, marker_colors=RACE_COLORS,
+        textinfo="label+percent", textfont_size=10,
+    ))
+    race_fig.update_layout(**CHART_LAYOUT)
+
+    # Timeline
+    dff2 = dff.dropna(subset=["DLC"])
+    yearly = dff2.groupby(dff2["DLC"].dt.year).size().reset_index(name="count")
+    yearly.columns = ["Year", "Count"]
+    time_fig = go.Figure(go.Scatter(
+        x=yearly["Year"], y=yearly["Count"],
+        mode="lines+markers",
+        line=dict(color=BLUE, width=2.5, shape="spline"),
+        marker=dict(size=5, color=BLUE),
+        fill="tozeroy", fillcolor="rgba(37,99,235,0.07)",
+    ))
+    time_fig.update_layout(
+        **CHART_LAYOUT,
+        xaxis=dict(showgrid=False, showline=False),
+        yaxis=dict(showgrid=True, gridcolor="#f1f5f9", zeroline=False),
+    )
+
+    # Table
+    table_df = dff[["Case Number", "Legal Last Name", "Legal First Name", "Missing Age",
+                     "City", "County", "Biological Sex", "Race / Ethnicity", "DLC"]].copy()
+    table_df["DLC"] = table_df["DLC"].dt.strftime("%Y-%m-%d")
+
+    return cards, age_fig, sex_fig, cty_fig, race_fig, time_fig, table_df.to_dict("records")
+
+
+if __name__ == "__main__":
+    app.run(debug=False, port=8050)
