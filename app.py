@@ -16,15 +16,15 @@ ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages"
 CLAUDE_MODEL      = "claude-sonnet-4-6"
 
 COLORS = {
-    "red":    "#a32d2d",
-    "blue":   "#185fa5",
-    "purple": "#534ab7",
-    "teal":   "#0f6e56",
-    "coral":  "#d85a30",
-    "gray":   "#73726c",
-    "green":  "#3b6d11",
-    "pink":   "#993556",
-    "amber":  "#ba7517",
+    "red":    "#b5493f",   # rust
+    "blue":   "#2a6f6f",   # accent teal
+    "purple": "#6d4c6f",   # plum
+    "teal":   "#1f4f4f",   # deep teal
+    "coral":  "#c17a4a",   # burnt gold
+    "gray":   "#6b6259",   # muted ink
+    "green":  "#5c7a52",   # sage
+    "pink":   "#a15c6b",   # dusty rose
+    "amber":  "#d9a441",   # gold
 }
 AGE_COLORS   = [COLORS["coral"], COLORS["purple"], COLORS["teal"]]
 GROUP_COLORS = [COLORS["red"],   COLORS["blue"],   COLORS["gray"], COLORS["green"]]
@@ -42,12 +42,12 @@ DEFAULT_CSV = os.path.join(_APP_DIR, _csv_candidates[0]) if _csv_candidates else
 
 def get_chart_layout(theme="light"):
     dark = theme == "dark"
-    text_color = "#b8c0d4" if dark else "#555555"
-    grid_color  = "#2a2e42" if dark else "#eeeeee"
+    text_color = "#a49c8c" if dark else "#6b6259"
+    grid_color  = "#3a423d" if dark else "#dfd8c8"
     base = dict(
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
-        font=dict(family="system-ui, sans-serif", size=12, color=text_color),
+        font=dict(family="'Helvetica Neue', Arial, sans-serif", size=12, color=text_color),
         margin=dict(l=10, r=10, t=10, b=10),
         showlegend=False,
     )
@@ -157,6 +157,482 @@ app = Dash(
     suppress_callback_exceptions=True,
 )
 
+app.index_string = """<!DOCTYPE html>
+<html>
+    <head>
+        {%metas%}
+        <title>{%title%}</title>
+        {%favicon%}
+        <style>
+/* ═══════════════════════════════════════════════════════════════
+   Theme tokens — light (default) and dark
+   Editorial / print palette to match intentional-tech.aatwal.com
+═══════════════════════════════════════════════════════════════ */
+:root {
+    --bg:          #f6f3ec;
+    --bg-card:     #ffffff;
+    --bg-surface:  #efe9dc;
+    --bg-input:    #ffffff;
+    --bg-chat:     #efe9dc;
+    --border:      #dfd8c8;
+    --text:        #1c2b33;
+    --text-muted:  #6b6259;
+    --shadow:      0 2px 10px rgba(28,43,51,0.06);
+    --shadow-md:   0 4px 16px rgba(28,43,51,0.10);
+    --radius:      2px;
+    --radius-sm:   2px;
+    --accent:      #2a6f6f;
+    --accent-hl:   rgba(42,111,111,0.08);
+    --blue:        #2a6f6f;
+    --gold:        #d9a441;
+    --rust:        #b5493f;
+    --grid:        #dfd8c8;
+    --font-serif:  "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    --font-sans:   "Helvetica Neue", Arial, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+
+[data-bs-theme="dark"] {
+    --bg:          #1b201e;
+    --bg-card:     #242b28;
+    --bg-surface:  #1f2624;
+    --bg-input:    #242b28;
+    --bg-chat:     #1f2624;
+    --border:      #3a423d;
+    --text:        #e9e4d8;
+    --text-muted:  #a49c8c;
+    --shadow:      0 2px 10px rgba(0,0,0,0.35);
+    --shadow-md:   0 4px 16px rgba(0,0,0,0.45);
+    --accent:      #4a9d9d;
+    --accent-hl:   rgba(74,157,157,0.14);
+    --blue:        #4a9d9d;
+    --gold:        #e3b866;
+    --rust:        #d17164;
+    --grid:        #3a423d;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Base
+═══════════════════════════════════════════════════════════════ */
+body {
+    background-color: var(--bg) !important;
+    color: var(--text) !important;
+    transition: background-color 0.22s ease, color 0.22s ease;
+    font-family: var(--font-sans);
+}
+
+h1, h2, h3.editorial, h5 {
+    font-family: var(--font-serif);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Eyebrow / editorial header
+═══════════════════════════════════════════════════════════════ */
+.eyebrow {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 8px;
+}
+
+.app-title {
+    font-family: var(--font-serif);
+    font-weight: 600;
+    font-size: 1.85rem;
+    line-height: 1.15;
+    color: var(--text);
+    margin: 0;
+}
+
+.app-sub {
+    font-family: var(--font-sans);
+    color: var(--text-muted);
+    font-size: 13.5px;
+    line-height: 1.5;
+    max-width: 640px;
+    margin: 8px 0 0;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Cards
+═══════════════════════════════════════════════════════════════ */
+.card {
+    background-color: var(--bg-card) !important;
+    border: 1px solid var(--border) !important;
+    box-shadow: none !important;
+    border-radius: var(--radius) !important;
+    transition: background-color 0.22s ease, border-color 0.22s ease, box-shadow 0.15s ease;
+}
+
+.card-body { color: var(--text) !important; }
+
+/* ═══════════════════════════════════════════════════════════════
+   Metric cards
+═══════════════════════════════════════════════════════════════ */
+.metric-card {
+    border-radius: var(--radius) !important;
+    transition: box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.metric-card:hover {
+    box-shadow: var(--shadow-md) !important;
+    border-color: var(--accent) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Nav / Tabs
+═══════════════════════════════════════════════════════════════ */
+.nav-tabs {
+    border-bottom: 2px solid var(--border) !important;
+    background: transparent !important;
+}
+
+.nav-tabs .nav-link {
+    color: var(--text-muted) !important;
+    border: none !important;
+    border-radius: 0 !important;
+    border-bottom: 3px solid transparent !important;
+    margin-bottom: -2px;
+    padding: 0.65rem 1.1rem;
+    font-size: 13px;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: transparent !important;
+    transition: color 0.15s ease, border-color 0.15s ease;
+}
+
+.nav-tabs .nav-link:hover { color: var(--text) !important; }
+
+.nav-tabs .nav-link.active {
+    color: var(--accent) !important;
+    border-bottom-color: var(--accent) !important;
+    background: transparent !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Form inputs
+═══════════════════════════════════════════════════════════════ */
+.form-control {
+    background-color: var(--bg-input) !important;
+    border-color: var(--border) !important;
+    color: var(--text) !important;
+    border-radius: var(--radius-sm) !important;
+    font-family: var(--font-sans);
+    transition: background-color 0.22s ease, border-color 0.15s ease;
+}
+
+.form-control::placeholder { color: var(--text-muted) !important; }
+
+.form-control:focus {
+    border-color: var(--accent) !important;
+    box-shadow: 0 0 0 3px var(--accent-hl) !important;
+    background-color: var(--bg-input) !important;
+    color: var(--text) !important;
+}
+
+.form-check-label { color: var(--text) !important; }
+
+/* ═══════════════════════════════════════════════════════════════
+   Dash Dropdown (react-select v2 / Select2 style)
+═══════════════════════════════════════════════════════════════ */
+.Select-control {
+    background-color: var(--bg-input) !important;
+    border-color: var(--border) !important;
+    border-radius: var(--radius-sm) !important;
+    color: var(--text) !important;
+    transition: background-color 0.22s ease, border-color 0.15s ease;
+}
+
+.Select-placeholder { color: var(--text-muted) !important; }
+.Select-value-label { color: var(--text) !important; }
+.has-value .Select-value-label { color: var(--text) !important; }
+
+.Select-menu-outer {
+    background-color: var(--bg-card) !important;
+    border-color: var(--border) !important;
+    border-radius: var(--radius-sm) !important;
+    box-shadow: var(--shadow-md) !important;
+    z-index: 9999 !important;
+}
+
+.Select-option {
+    background-color: var(--bg-card) !important;
+    color: var(--text) !important;
+}
+
+.Select-option.is-focused {
+    background-color: var(--bg-surface) !important;
+    color: var(--text) !important;
+}
+
+.Select-option.is-selected {
+    background-color: var(--accent-hl) !important;
+    color: var(--accent) !important;
+}
+
+.Select-arrow { border-color: var(--text-muted) transparent transparent !important; }
+.Select.is-open .Select-arrow { border-color: transparent transparent var(--text-muted) !important; }
+
+.Select-multi-value-wrapper .Select-value {
+    background-color: var(--accent-hl) !important;
+    border-color: var(--border) !important;
+    color: var(--accent) !important;
+    border-radius: 2px !important;
+}
+
+.Select-value-icon {
+    border-right-color: var(--border) !important;
+    color: var(--text-muted) !important;
+}
+
+.Select-value-icon:hover {
+    color: var(--accent) !important;
+    background: transparent !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   DataTable
+═══════════════════════════════════════════════════════════════ */
+.dash-spreadsheet-container .dash-spreadsheet-inner {
+    background-color: var(--bg-card) !important;
+    font-family: var(--font-sans) !important;
+}
+
+.dash-spreadsheet .dash-header,
+.dash-spreadsheet th {
+    background-color: var(--bg-surface) !important;
+    color: var(--text-muted) !important;
+    border-bottom: 2px solid var(--border) !important;
+    border-right: none !important;
+}
+
+.dash-spreadsheet td.dash-cell,
+.dash-spreadsheet .dash-cell {
+    background-color: var(--bg-card) !important;
+    color: var(--text) !important;
+    border-bottom: 1px solid var(--border) !important;
+    border-right: none !important;
+}
+
+.dash-spreadsheet tr:hover td.dash-cell {
+    background-color: var(--bg-surface) !important;
+}
+
+.dash-spreadsheet .dash-filter input {
+    background-color: var(--bg-input) !important;
+    color: var(--text) !important;
+    border-color: var(--border) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Alerts
+═══════════════════════════════════════════════════════════════ */
+.alert-light {
+    background-color: var(--bg-surface) !important;
+    border-color: var(--border) !important;
+    border-radius: var(--radius) !important;
+    color: var(--text) !important;
+}
+
+.alert-light hr { border-color: var(--border) !important; }
+
+/* ═══════════════════════════════════════════════════════════════
+   Upload zone
+═══════════════════════════════════════════════════════════════ */
+.upload-zone {
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    text-align: center;
+    cursor: pointer;
+    color: var(--text-muted);
+    font-family: var(--font-sans);
+    font-size: 13px;
+    transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+.upload-zone:hover {
+    border-color: var(--accent);
+    background-color: var(--accent-hl);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Chat window + bubbles
+═══════════════════════════════════════════════════════════════ */
+.chat-window {
+    background-color: var(--bg-chat) !important;
+    border: 1px solid var(--border) !important;
+    border-radius: var(--radius) !important;
+    height: 380px;
+    overflow-y: auto;
+    padding: 14px;
+    margin-bottom: 10px;
+    transition: background-color 0.22s ease, border-color 0.22s ease;
+}
+
+.chat-bubble {
+    display: inline-block;
+    padding: 9px 14px;
+    border-radius: 3px;
+    font-family: var(--font-sans);
+    font-size: 13px;
+    max-width: 85%;
+    white-space: pre-wrap;
+    line-height: 1.5;
+}
+
+.user-bubble {
+    background-color: var(--accent);
+    color: #ffffff;
+}
+
+.assistant-bubble {
+    background-color: var(--bg-card);
+    color: var(--text);
+    border: 1px solid var(--border);
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Section labels
+═══════════════════════════════════════════════════════════════ */
+.section-label {
+    font-family: var(--font-sans);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.section-idx {
+    color: var(--accent);
+    font-weight: 700;
+    margin-right: 8px;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Theme toggle button
+═══════════════════════════════════════════════════════════════ */
+.theme-toggle {
+    width: 34px;
+    height: 34px;
+    border-radius: 50% !important;
+    border: 1px solid var(--border) !important;
+    background: var(--bg-card) !important;
+    color: var(--text-muted) !important;
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    padding: 0 !important;
+    font-size: 14px;
+}
+
+.theme-toggle:hover {
+    color: var(--accent) !important;
+    border-color: var(--accent) !important;
+    box-shadow: var(--shadow-md) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Buttons
+═══════════════════════════════════════════════════════════════ */
+.btn {
+    border-radius: var(--radius-sm) !important;
+    font-family: var(--font-sans);
+}
+
+.btn-outline-secondary {
+    border-color: var(--border) !important;
+    color: var(--text-muted) !important;
+}
+
+.btn-outline-secondary:hover {
+    background-color: var(--bg-surface) !important;
+    color: var(--text) !important;
+    border-color: var(--text-muted) !important;
+}
+
+.btn-primary {
+    background-color: var(--accent) !important;
+    border-color: var(--accent) !important;
+}
+
+.btn-outline-primary {
+    color: var(--accent) !important;
+    border-color: var(--accent) !important;
+}
+
+.btn-outline-primary:hover {
+    background-color: var(--accent) !important;
+    border-color: var(--accent) !important;
+}
+
+.btn-outline-danger {
+    color: var(--rust) !important;
+    border-color: var(--rust) !important;
+}
+
+.btn-outline-danger:hover {
+    background-color: var(--rust) !important;
+    border-color: var(--rust) !important;
+}
+
+.btn-outline-warning {
+    color: var(--gold) !important;
+    border-color: var(--gold) !important;
+}
+
+.btn-outline-warning:hover {
+    background-color: var(--gold) !important;
+    border-color: var(--gold) !important;
+    color: #1c2b33 !important;
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Slider
+═══════════════════════════════════════════════════════════════ */
+.dash-slider-range  { background-color: var(--accent) !important; }
+.dash-slider-track  { background-color: var(--border) !important; }
+.dash-slider-thumb  { border-color: var(--accent) !important; background-color: var(--bg-card) !important; }
+.dash-slider-mark   { color: var(--text-muted) !important; font-family: var(--font-sans); }
+.dash-slider-tooltip { font-family: var(--font-sans); }
+
+/* ═══════════════════════════════════════════════════════════════
+   Scrollbars
+═══════════════════════════════════════════════════════════════ */
+::-webkit-scrollbar { width: 5px; height: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* ═══════════════════════════════════════════════════════════════
+   HR separator
+═══════════════════════════════════════════════════════════════ */
+hr { border-color: var(--border) !important; opacity: 1 !important; }
+
+/* ═══════════════════════════════════════════════════════════════
+   Spinner
+═══════════════════════════════════════════════════════════════ */
+[data-bs-theme="dark"] .text-muted { color: var(--text-muted) !important; }
+        </style>
+        {%css%}
+    </head>
+    <body>
+        {%app_entry%}
+        <footer>
+            {%config%}
+            {%scripts%}
+            {%renderer%}
+        </footer>
+    </body>
+</html>"""
+
 
 # ── Layout helpers ────────────────────────────────────────────────────────────
 def metric_card(label, value, color=COLORS["red"], icon="bi-person"):
@@ -175,8 +651,12 @@ def metric_card(label, value, color=COLORS["red"], icon="bi-person"):
     ]), className="metric-card h-100")
 
 
-def section_header(title):
-    return html.P(title, className="section-label")
+def section_header(title, idx=None):
+    children = []
+    if idx is not None:
+        children.append(html.Span(f"{idx:02d}", className="section-idx"))
+    children.append(title)
+    return html.P(children, className="section-label")
 
 
 # ── Main layout ───────────────────────────────────────────────────────────────
@@ -188,17 +668,14 @@ app.layout = dbc.Container([
     # ── Header ────────────────────────────────────────────────────────────────
     dbc.Row([
         dbc.Col([
-            html.Div([
-                html.I(className="bi bi-search-heart me-2",
-                       style={"color": COLORS["red"], "fontSize": "24px"}),
-                html.Span("NamUs Missing Persons Dashboard",
-                          style={"fontWeight": 700, "fontSize": "1.35rem",
-                                 "verticalAlign": "middle"}),
-            ], className="d-flex align-items-center"),
-            html.P("California · Powered by Claude AI", style={
-                "color": "var(--text-muted)", "fontSize": "12.5px",
-                "margin": "4px 0 0 32px",
-            }),
+            html.Div("NamUs · California · Powered by Claude AI", className="eyebrow"),
+            html.H1("Missing Persons Dashboard", className="app-title"),
+            html.P(
+                "Explore active NamUs missing-persons cases across California. "
+                "Filter by county, age, and race to surface patterns and check "
+                "cases for media coverage.",
+                className="app-sub",
+            ),
         ]),
         dbc.Col(
             html.Div(
@@ -209,12 +686,12 @@ app.layout = dbc.Container([
                     n_clicks=0,
                     title="Toggle dark mode",
                 ),
-                className="d-flex justify-content-end align-items-center h-100",
+                className="d-flex justify-content-end align-items-start h-100",
             ),
             md=2,
         ),
     ], className="py-4 mb-4",
-       style={"borderBottom": "1px solid var(--border)"}),
+       style={"borderBottom": "2px solid var(--text)"}),
 
     # ── Upload ────────────────────────────────────────────────────────────────
     dbc.Card(dbc.CardBody([
@@ -301,13 +778,13 @@ app.layout = dbc.Container([
         dbc.Tab(label="📊 Charts", tab_id="tab-charts", children=[
             dbc.Row([
                 dbc.Col([
-                    section_header("Age group"),
+                    section_header("Age group", 1),
                     dcc.Graph(id="age-bar",
                               config={"displayModeBar": False},
                               style={"height": "220px"}),
                 ], md=6),
                 dbc.Col([
-                    section_header("Sex distribution"),
+                    section_header("Sex distribution", 2),
                     dcc.Graph(id="sex-pie",
                               config={"displayModeBar": False},
                               style={"height": "220px"}),
@@ -315,13 +792,13 @@ app.layout = dbc.Container([
             ], className="mt-3"),
             dbc.Row([
                 dbc.Col([
-                    section_header("Top 10 counties"),
+                    section_header("Top 10 counties", 3),
                     dcc.Graph(id="county-bar",
                               config={"displayModeBar": False},
                               style={"height": "300px"}),
                 ], md=6),
                 dbc.Col([
-                    section_header("Race / ethnicity"),
+                    section_header("Race / ethnicity", 4),
                     dcc.Graph(id="race-pie",
                               config={"displayModeBar": False},
                               style={"height": "300px"}),
@@ -329,7 +806,7 @@ app.layout = dbc.Container([
             ]),
             dbc.Row([
                 dbc.Col([
-                    section_header("Cases by year reported missing"),
+                    section_header("Cases by year reported missing", 5),
                     dcc.Graph(id="time-line",
                               config={"displayModeBar": False},
                               style={"height": "200px"}),
@@ -337,7 +814,7 @@ app.layout = dbc.Container([
             ]),
             dbc.Row([
                 dbc.Col([
-                    section_header("Age distribution (histogram)"),
+                    section_header("Age distribution (histogram)", 6),
                     dcc.Graph(id="age-hist",
                               config={"displayModeBar": False},
                               style={"height": "200px"}),
@@ -348,7 +825,7 @@ app.layout = dbc.Container([
         # Map
         dbc.Tab(label="🗺️ Map", tab_id="tab-map", children=[
             html.Div([
-                section_header("Cases by county"),
+                section_header("Cases by county", 1),
                 html.P("Bubble size and color indicate case count.",
                        style={"fontSize": "12px", "color": "var(--text-muted)",
                               "marginBottom": "6px"}),
@@ -363,7 +840,7 @@ app.layout = dbc.Container([
             html.Div([
                 dbc.Row([
                     dbc.Col([
-                        section_header("Case list"),
+                        section_header("Case list", 1),
                         html.P(id="table-count",
                                style={"fontSize": "12px",
                                       "color": "var(--text-muted)"}),
@@ -397,27 +874,28 @@ app.layout = dbc.Container([
                     filter_action="native",
                     row_selectable="single",
                     selected_rows=[],
-                    style_table={"overflowX": "auto", "borderRadius": "8px"},
+                    style_table={"overflowX": "auto", "borderRadius": "2px"},
                     style_cell={
                         "fontSize": "12px", "padding": "8px 12px",
-                        "fontFamily": "system-ui", "maxWidth": "180px",
+                        "fontFamily": "'Helvetica Neue', Arial, sans-serif",
+                        "maxWidth": "180px",
                         "overflow": "hidden", "textOverflow": "ellipsis",
-                        "border": "none", "borderBottom": "1px solid #e2e5ec",
+                        "border": "none", "borderBottom": "1px solid var(--border)",
                     },
                     style_header={
-                        "fontWeight": 700, "backgroundColor": "#f8f9fb",
+                        "fontWeight": 700, "backgroundColor": "var(--bg-surface)",
                         "fontSize": "11px", "textTransform": "uppercase",
-                        "letterSpacing": "0.4px", "color": "#6b7280",
-                        "border": "none", "borderBottom": "2px solid #e2e5ec",
+                        "letterSpacing": "0.4px", "color": "var(--text-muted)",
+                        "border": "none", "borderBottom": "2px solid var(--border)",
                     },
                     style_data_conditional=[
                         {"if": {"row_index": "odd"},
-                         "backgroundColor": "#fcfcfd"},
+                         "backgroundColor": "var(--bg-surface)"},
                         {"if": {"state": "selected"},
-                         "backgroundColor": "rgba(163,45,45,0.06)",
+                         "backgroundColor": "var(--accent-hl)",
                          "border": "none"},
                         {"if": {"filter_query": "{Age} < 6 && {Age} > -1"},
-                         "backgroundColor": "#fff5f5", "color": COLORS["red"]},
+                         "backgroundColor": "rgba(181,73,63,0.08)", "color": COLORS["red"]},
                     ],
                 ),
                 html.Div(id="case-detail", className="mt-3"),
@@ -427,7 +905,7 @@ app.layout = dbc.Container([
         # News Check
         dbc.Tab(label="📰 News Check", tab_id="tab-news", children=[
             html.Div([
-                section_header("Media attention checker"),
+                section_header("Media attention checker", 1),
                 html.P([
                     "Select a case from the Cases tab, then click below to search the web "
                     "for any news coverage for that child."
@@ -448,7 +926,7 @@ app.layout = dbc.Container([
                 dbc.Spinner(html.Div(id="news-result"), color="danger", size="sm"),
 
                 html.Hr(style={"margin": "1.5rem 0"}),
-                section_header("Batch: flag children with no media coverage"),
+                section_header("Batch: flag children with no media coverage", 2),
                 html.P(
                     "Runs Claude on the youngest cases (age 0–12) to identify those "
                     "with zero news coverage.",
@@ -480,7 +958,7 @@ app.layout = dbc.Container([
         # AI Chat
         dbc.Tab(label="🤖 AI Chat", tab_id="tab-chat", children=[
             html.Div([
-                section_header("Ask Claude about the data"),
+                section_header("Ask Claude about the data", 1),
                 html.P("Ask any question about the missing persons dataset.",
                        style={"fontSize": "13px", "color": "var(--text-muted)"}),
 
@@ -881,9 +1359,8 @@ def show_case_detail(selected_rows, data):
                 target="_blank", color="outline-primary", size="sm", className="me-2",
             ),
         ], className="mt-2"),
-    ]), className="shadow-sm",
-       style={"borderRadius": "8px",
-              "borderLeft": f"4px solid {COLORS['red']}"}),
+    ]), style={"borderRadius": "2px",
+               "borderLeft": f"3px solid {COLORS['red']}"}),
 
     return detail, info, False
 
