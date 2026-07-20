@@ -668,7 +668,7 @@ app.layout = dbc.Container([
     # ── Header ────────────────────────────────────────────────────────────────
     dbc.Row([
         dbc.Col([
-            html.Div("NamUs · California · Powered by Claude AI", className="eyebrow"),
+            html.Div("NamUs · California", className="eyebrow"),
             html.H1("Missing Persons Dashboard", className="app-title"),
             html.P(
                 "Explore active NamUs missing-persons cases across California. "
