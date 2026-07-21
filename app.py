@@ -237,6 +237,24 @@ h1, h2, h3.editorial, h5 {
     margin-bottom: 8px;
 }
 
+.logo-lockup {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 8px;
+}
+
+.logo-mark {
+    font-family: var(--font-serif);
+    font-weight: 700;
+    font-size: 18px;
+    color: var(--bg);
+    background: linear-gradient(90deg, var(--accent), var(--gold));
+    border-radius: 3px;
+    padding: 8px 14px;
+    line-height: 1;
+}
+
 .app-title {
     font-family: var(--font-serif);
     font-weight: 600;
@@ -668,7 +686,10 @@ app.layout = dbc.Container([
     # ── Header ────────────────────────────────────────────────────────────────
     dbc.Row([
         dbc.Col([
-            html.Div("NamUs · California", className="eyebrow"),
+            html.Div([
+                html.Span("a@wal", className="logo-mark"),
+                html.Div("NamUs · California", className="eyebrow", style={"marginBottom": 0}),
+            ], className="logo-lockup"),
             html.H1("Missing Persons Dashboard", className="app-title"),
             html.P(
                 "Explore active NamUs missing-persons cases across California. "
